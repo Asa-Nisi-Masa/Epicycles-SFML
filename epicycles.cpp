@@ -5,30 +5,56 @@
 
 sf::CircleShape make_circle(double radius, double xpos, double ypos)
 {
+    /*
+        Returns a circle object with a specified radius at the specified position
+
+        Arguments:
+            -radius -- circle radius
+            -xpos   -- x position in pixels
+            -ypos   -- y position in pixels
+    */
+
     sf::CircleShape circle;
     circle.setRadius(radius);
     circle.setPosition(xpos - radius, ypos - radius);
-    circle.setOutlineThickness(2.0);
+    circle.setOutlineThickness(1.0);
+    circle.setOutlineColor(sf::Color(255, 0, 255));
     circle.setFillColor(sf::Color::Transparent);
 
     return circle;
 }
 
-sf::Vertex* make_line(double x1, double y1, double x2, double y2)
+
+std::complex<double> compute_coef(std::vector<std::complex<double>> points, double k)
 {
-    sf::Vertex* line = new sf::Vertex[2];
-    line[0] = sf::Vertex(sf::Vector2f(x1, y1));
-    line[1] = sf::Vertex(sf::Vector2f(x2, y2));
-    return line;
+    /*
+        Computes the k-th complex Fourier coefficient C_k
+
+        Arguments:
+            -points -- vector of complex numbers corresponding to the location of image pixels (scaled down to real numbers)
+            -k      -- index specifying the k-th Fourier coefficient
+    */
+
+    std::complex<double> result;
+    double dt = 2*3.1415926535 / points.size(); // time step for integration
+    double t = 0.0;
+
+    // integration
+    for (int j=0; j<points.size(); j++)
+    {
+        result += points[j]*exp(- std::complex<double>(0, 1.0) * k * t)*dt;
+        t += dt;
+    }
+
+    return 1.0/(2*3.1415926535)*result;
 }
 
 int main()
 {
     int height = 600;
     int width = 600;
-    int unit = 50;
+    int unit = 50;      // 1 in real number space = 1*unit in pixel space
     sf::RenderWindow window(sf::VideoMode(width, height), "Epicycles");
-
 
     sf::Image image;
     if(!image.loadFromFile("image.png"))
@@ -36,41 +62,45 @@ int main()
 
     int imagex = image.getSize().x;
     int imagey = image.getSize().y;
+
     sf::Color col;
     sf::VertexArray image_vertices(sf::Points);
     sf::Vertex image_vertex;
 
-//    int foobar[imagey*imagex][3]; // out of memory
+    std::vector<std::complex<double>> points;
 
-    for (int yy=0;yy<imagey;yy++)
-        {
-            for (int xx=0;xx<imagex;xx++)
-            {
-            col = image.getPixel(xx, yy);
-            image_vertex.position = sf::Vector2f(xx, yy);
-            image_vertex.color = col;
-            image_vertices.append(image_vertex);
-            }
-        }
-
-
-    int N = 500;
-    std::complex<double> C[N];
-
-    for (int n=1; n<N; n++)
-    {
-        C[n] = {1.0/(n), 0}; // arbitrary coefficients
-    }
+    // construct a vector of image pixel locations
+//    for (int yy=0;yy<imagey;yy++)
+//        {
+//            for (int xx=0;xx<imagex;xx++)
+//            {
+//            col = image.getPixel(xx, yy);
+//            image_vertex.position = sf::Vector2f(xx, yy);
+//            image_vertex.color = col;
+//            image_vertices.append(image_vertex);
+//
+//            if (col == sf::Color::White)
+//                points.push_back({image_vertex.position.x/unit - width/(2*unit), height/(2*unit) - image_vertex.position.y/unit});
+//            }
+//        }
+//
+//    points.push_back({points[0].real(), points[0].imag()});
 
 
-    std::complex<double> Z[N];
-    Z[0] = C[0];
+    int N = 100;        // use 2*N epicycles (+1 anchor point)
+    std::complex<double> C[2*N+1];      // complex Fourier coefficients
+    std::complex<double> Z[2*N+1];      // Z[i] is the complex point of the i-th epicycle (C[0]*exp() + ... +C[i] * exp(..))
+//    Z[0] = C[0];
 
-    double t = 0;
     sf::CircleShape circle;
-    std::vector<sf::Vertex> vertices;
+    std::vector<sf::Vertex> vertices_radii;
     std::vector<sf::Vertex> trail;
-    double f = 0.1;
+
+    double t = 0.0;
+    double dt;
+    double f = 1.0;
+    bool done_drawing = false;
+
     while (window.isOpen())
     {
 
@@ -79,38 +109,71 @@ int main()
         {
             if (event.type == sf::Event::Closed)
                 window.close();
+
+            if (done_drawing == false)
+            {
+            if (event.type == sf::Event::MouseMoved)
+            {
+                    if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
+                    {
+                    image_vertex.position = sf::Vector2f(sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y);
+                    image_vertex.color = sf::Color::White;
+                    image_vertices.append(image_vertex);
+
+                    points.push_back({image_vertex.position.x/unit - width/(2*unit), height/(2*unit) - image_vertex.position.y/unit});
+                    }
+            }
+            }
+
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+            {
+                done_drawing = true;
+                for (int n=0; n<2*N+1; n++)
+                {
+                    double k = pow(-1, n+1)*ceil(n/2.0);
+                    C[n] = compute_coef(points, k);
+                }
+
+                Z[0] = C[0];
+                dt = 2*3.1415926535 / points.size();
+            }
         }
 
-        for (int i=1; i<N; i++)
+        if (done_drawing == true)
         {
-            Z[i] = Z[i-1] + C[i]*exp(i* f*2*3.141592*std::complex<double>(0, 1) * t);
+        for (int i=1; i<2*N+1; i++)
+        {
+            Z[i] = Z[i-1] + C[i]*exp(pow(-1, i+1)*ceil(i/2.0) * f * std::complex<double>(0, 1) * t);
         }
 
-        for (int i=0; i<N; i++)
+        for (int i=0; i<2*N+1; i++)
         {
-            vertices.push_back(sf::Vertex(sf::Vector2f(width/2 + Z[i].real()*unit, height/2-Z[i].imag()*unit)));
+            vertices_radii.push_back(sf::Vertex(sf::Vector2f(width/2 + Z[i].real()*unit, height/2-Z[i].imag()*unit)));
         }
-        trail.push_back(sf::Vertex(sf::Vector2f(width/2 + Z[N-1].real()*unit, height/2-Z[N-1].imag()*unit), sf::Color::Green));
+        trail.push_back(sf::Vertex(sf::Vector2f(width/2 + Z[2*N+1 -1].real()*unit, height/2-Z[2*N+1 -1].imag()*unit), sf::Color::Green));
+        }
 
         window.clear(sf::Color::Black);
+        window.draw(image_vertices);
 
-        for (int i=1; i<N; i++)
+        if (done_drawing == true)
         {
-            circle = make_circle(std::abs(C[i])*unit, width/2 + Z[i-1].real()*unit, height/2-Z[i-1].imag()*unit);
+        for (int i=1; i<2*N+1; i++)
+        {
+            circle = make_circle(std::abs(C[i])*unit, vertices_radii[i-1].position.x, vertices_radii[i-1].position.y);
             window.draw(circle);
         }
 
-        window.draw(image_vertices);
-        window.draw(&trail[0], trail.size(), sf::LineStrip);
-        window.draw(&vertices[0], N, sf::LineStrip);
+         window.draw(&trail[0], trail.size(), sf::LineStrip);
+         window.draw(&vertices_radii[0], 2*N+1, sf::LineStrip);
+
+         vertices_radii.clear();
+         t += dt;
+        }
 
         window.display();
-        window.setFramerateLimit(30);
-
-        vertices.clear();
-        t += 1.0/30;
+        window.setFramerateLimit(500);
     }
-
 
     return 0;
 }
