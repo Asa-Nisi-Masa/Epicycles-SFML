@@ -1,7 +1,7 @@
-#include <iostream>
 #include <SFML/Graphics.hpp>
+#include <iostream>
 #include <complex>
-#include <math.h>
+
 
 sf::CircleShape make_circle(double radius, double xpos, double ypos)
 {
@@ -56,41 +56,15 @@ int main()
     int unit = 50;      // 1 in real number space = 1*unit in pixel space
     sf::RenderWindow window(sf::VideoMode(width, height), "Epicycles");
 
-    sf::Image image;
-    if(!image.loadFromFile("image.png"))
-        return -1;
-
-    int imagex = image.getSize().x;
-    int imagey = image.getSize().y;
-
     sf::Color col;
     sf::VertexArray image_vertices(sf::Points);
     sf::Vertex image_vertex;
 
     std::vector<std::complex<double>> points;
 
-    // construct a vector of image pixel locations
-//    for (int yy=0;yy<imagey;yy++)
-//        {
-//            for (int xx=0;xx<imagex;xx++)
-//            {
-//            col = image.getPixel(xx, yy);
-//            image_vertex.position = sf::Vector2f(xx, yy);
-//            image_vertex.color = col;
-//            image_vertices.append(image_vertex);
-//
-//            if (col == sf::Color::White)
-//                points.push_back({image_vertex.position.x/unit - width/(2*unit), height/(2*unit) - image_vertex.position.y/unit});
-//            }
-//        }
-//
-//    points.push_back({points[0].real(), points[0].imag()});
-
-
     int N = 100;        // use 2*N epicycles (+1 anchor point)
     std::complex<double> C[2*N+1];      // complex Fourier coefficients
     std::complex<double> Z[2*N+1];      // Z[i] is the complex point of the i-th epicycle (C[0]*exp() + ... +C[i] * exp(..))
-//    Z[0] = C[0];
 
     sf::CircleShape circle;
     std::vector<sf::Vertex> vertices_radii;
@@ -98,7 +72,7 @@ int main()
 
     double t = 0.0;
     double dt;
-    double f = 1.0;
+    double f = 1.0/2;   // controls how frequently epicycles traverse the points
     bool done_drawing = false;
 
     while (window.isOpen())
