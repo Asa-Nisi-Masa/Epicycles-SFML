@@ -1,6 +1,6 @@
 # Epicycles-SFML
 
-Implementation of Discrete Fourier Transform in C++ using SFML (2.5.0).
+Implementation of Complex Discrete Fourier Transform in C++ using SFML (2.5.0), visualized with epicycles.
 
 Usage:
 
