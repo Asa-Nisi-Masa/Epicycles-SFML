@@ -7,6 +7,10 @@ Usage:
 - Draw points with a mouse in a (somewhat) closed curve
 - Press Spacebar to visualize epicycles going through the points
 
+### p5.js reimplementation
+
+https://www.openprocessing.org/sketch/749824
+
 ![](animation.gif)
 
 
